@@ -1015,8 +1015,61 @@ function ProjectsStep({ formData, setFormData }) {
 }
 
 // Step 5: Export
-function ExportStep({ formData, onExport, isGenerating }) {
+function ExportStep({ formData, onExport, isGenerating, onPreview }) {
+  const [showPreview, setShowPreview] = useState(false);
   const hatsDisplay = formData.hats.filter(h => h.trim()).join(' · ');
+
+  const handlePreview = () => {
+    setShowPreview(true);
+  };
+
+  const closePreview = () => {
+    setShowPreview(false);
+  };
+
+  // Generate preview HTML with embedded images
+  const getPreviewHTML = () => {
+    const html = generateHTML(formData);
+    const css = CSS_CONTENT;
+    
+    // Create a complete HTML document with embedded CSS and base64 images
+    let previewHTML = html.replace(
+      '<link rel="stylesheet" href="style.css" />',
+      `<style>${css}</style>`
+    );
+    
+    // Replace profile photo with data URL if available
+    if (formData.profilePhotoPreview) {
+      previewHTML = previewHTML.replace(
+        'src="images/profile.jpg"',
+        `src="${formData.profilePhotoPreview}"`
+      );
+    }
+    
+    // Replace experience logos with data URLs
+    formData.experiences.forEach((exp, index) => {
+      if (exp.logoPreview) {
+        const extension = exp.logo?.name?.split('.').pop() || 'png';
+        previewHTML = previewHTML.replace(
+          `src="images/exp-logo-${index}.${extension}"`,
+          `src="${exp.logoPreview}"`
+        );
+      }
+    });
+    
+    // Replace project images with data URLs
+    formData.projects.forEach((project, index) => {
+      if (project.imagePreview) {
+        const extension = project.image?.name?.split('.').pop() || 'jpg';
+        previewHTML = previewHTML.replace(
+          `src="images/project-${index}.${extension}"`,
+          `src="${project.imagePreview}"`
+        );
+      }
+    });
+    
+    return previewHTML;
+  };
 
   return (
     <div className="step-content export-step">
@@ -1055,23 +1108,51 @@ function ExportStep({ formData, onExport, isGenerating }) {
         </div>
       </div>
 
-      <button 
-        className="download-button"
-        onClick={onExport}
-        disabled={isGenerating || !formData.fullName || !formData.email}
-      >
-        {isGenerating ? (
-          <>
-            <span className="spinner"></span>
-            Generating...
-          </>
-        ) : (
-          'Download Website'
-        )}
-      </button>
+      <div className="export-buttons">
+        <button 
+          className="preview-button"
+          onClick={handlePreview}
+          disabled={!formData.fullName || !formData.email}
+        >
+          Preview Website
+        </button>
+        <button 
+          className="download-button"
+          onClick={onExport}
+          disabled={isGenerating || !formData.fullName || !formData.email}
+        >
+          {isGenerating ? (
+            <>
+              <span className="spinner"></span>
+              Generating...
+            </>
+          ) : (
+            'Download Website'
+          )}
+        </button>
+      </div>
 
       {(!formData.fullName || !formData.email) && (
         <p className="export-warning">Please fill in your name and email to export.</p>
+      )}
+
+      {/* Preview Modal */}
+      {showPreview && (
+        <div className="preview-modal-overlay" onClick={closePreview}>
+          <div className="preview-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="preview-header">
+              <span className="preview-title">Website Preview</span>
+              <button className="preview-close" onClick={closePreview}>✕</button>
+            </div>
+            <div className="preview-frame-container">
+              <iframe
+                title="Website Preview"
+                srcDoc={getPreviewHTML()}
+                className="preview-iframe"
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
